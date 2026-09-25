@@ -78,11 +78,58 @@ In this section, we discuss effect sizes for describing the relationship strengt
 
 ### Why can't we just pool raw correlations?
 
-**Should make clear that many studies don't even report $r$, they just plot scatterplots (that they might have analyzed with linear models)**
-
 When primary studies report their results, they often present Pearson's correlation coefficient ($r$). It is an appealing effect size: it carries no units, so a correlation between body mass and clutch size can be compared directly against one between soil nitrogen and plant diversity (if that makes sense to be compared, which is another question). It runs from $-1$ (a perfect negative linear association) through $0$ (no *linear* association) to $+1$ (a perfect positive linear association).
 
-**I think we should also add how $r$ captures both relationship and variance in a single value, which can be confusing if your last stats class was ages ago...**
+In practice, many studies never report $r$ at all. Instead, they show a scatterplot, often with a fitted line from a linear model, and report a slope, a $t$ or $F$ statistic, or an $R^2$. In those cases you will have to obtain $r$ yourself, either by extracting the points from the figure (see [Chapter 3.4](3.4-Zr-challenges.qmd#sec-simple-figures)) or by converting the reported test statistics (see [Chapter 4](4-converting-effect-sizes.qmd)).
+
+::: callout-tip
+##### 📝 DRAFT: What $r$ actually measures
+
+It is easy to forget, if your last stats class was a while ago, that $r$ packs two things into a single number: the *direction* of the relationship and how *tightly* the points cluster around a straight line. It is not the slope. The two are linked by
+
+$$
+r = b \, \frac{s_x}{s_y}
+$${#eq-r-slope}
+
+where $b$ is the slope of the regression of $y$ on $x$, and $s_x$ and $s_y$ are the standard deviations of the two variables. The same slope can therefore come with a strong or a weak correlation, depending on how much scatter surrounds the line, and a very shallow slope can give $r$ close to $1$ if the points sit right on it (@fig-r-slope-scatter). Squaring $r$ gives $r^2$, the proportion of the variance in $y$ explained by a straight line on $x$ (the same $R^2$ as in a simple linear regression).
+
+```{r}
+#| label: fig-r-slope-scatter
+#| fig-cap: "Three simulated datasets with the same 50 values of $x$. Panels A and B share the same slope but differ in scatter, so their correlations differ. Panels A and C have very different slopes but the same scatter relative to the slope, so their correlations are identical."
+#| fig-width: 9
+#| fig-height: 3.5
+#| eval: true
+#| echo: true
+set.seed(42)
+n <- 50
+x <- rnorm(n)
+e <- as.numeric(scale(resid(lm(rnorm(n) ~ x))))  # noise uncorrelated with x, so the fitted slope equals b exactly
+scenarios <- data.frame(
+  panel = c("A. Steep slope, little scatter", "B. Steep slope, lots of scatter", "C. Shallow slope, little scatter"),
+  b     = c(1, 1, 0.2),
+  sigma = c(0.4, 2, 0.08)
+)
+sim <- do.call(rbind, lapply(seq_len(nrow(scenarios)), function(i) {
+  data.frame(panel = scenarios$panel[i], x = x,
+             y = scenarios$b[i] * x + scenarios$sigma[i] * e)
+}))
+labs_df <- do.call(rbind, lapply(split(sim, sim$panel), function(d) {
+  data.frame(panel = d$panel[1],
+             label = sprintf("slope = %.2f\nr = %.2f", coef(lm(y ~ x, data = d))[2], cor(d$x, d$y)))
+}))
+p <- ggplot(sim, aes(x = x, y = y)) +
+  geom_point(alpha = 0.6) +
+  geom_smooth(method = "lm", se = FALSE, color = "blue", linewidth = 1) +
+  geom_text(data = labs_df, aes(x = -Inf, y = Inf, label = label),
+            hjust = -0.1, vjust = 1.2, size = 3.5) +
+  facet_wrap(~ panel) +
+  theme_minimal() +
+  labs(x = "Predictor (x)", y = "Response (y)")
+p
+```
+
+For a meta-analysis, this means that two studies of identical biology (same slope) can report different correlations simply because one measured noisier data or sampled a narrower range of $x$ (see [range restriction and measurement error](#not-all-correlations-are-comparable) below).
+:::
 
 Convenient as it is, the raw correlation coefficient has three mathematical properties that sit awkwardly with the assumptions of standard meta-analytic models. All three trace back to a single issue: $r$ is bounded by $-1$ and $+1$, and statistical estimates behave badly near hard limits.
 
@@ -112,7 +159,7 @@ $$
 y_i = Z_{r_i} = \text{atanh}(r_i) = \frac{1}{2} \ln\left(\frac{1 + r_i}{1 - r_i}\right)
 $${#eq-zr-point}
 
-**Should the second = sign by a $\approx$?**
+Both equal signs are exact: $\frac{1}{2} \ln\left(\frac{1 + r}{1 - r}\right)$ is simply the definition of $\text{atanh}(r)$. The approximations come in later, when we describe how $Z_r$ is distributed across studies.
 
 Correlations near zero barely move. Correlations near the boundaries are stretched dramatically. The result is a distribution that is close to symmetric and close to normal for samples of roughly $10$ or more.
 
@@ -131,7 +178,7 @@ Fisher's variance is derived assuming the two variables follow a bivariate norma
 
 When the underlying data are strongly non-normal (heavy tailed) abundance counts, or ratios with a few extreme values, the true sampling variance can be noticeably larger than $1/(n_i - 3)$, and standard errors will be too optimistic [@Hawkins1989-zr; @Kowalski1972-nn]. This is a further reason to prefer robust variance estimation (see below) when your evidence base is built on skewed ecological data.
 
-**I guess this means that you can't do funky things, like calculate Zr for continuous responses and a discrete predictor?**
+What about a discrete variable, such as a binary treatment, a sex, or a presence/absence response? Pearson's formula will still return a number (the *point-biserial correlation*), but a binary variable cannot be normal, so the bivariate normality assumption fails by construction. The variance $1/(n_i - 3)$ becomes a rough approximation, and the correlation itself is capped by how unevenly the two groups are split (see the point-biserial box under [Not all correlations are comparable](#not-all-correlations-are-comparable)). For these designs, an SMD or $\ln\text{OR}$ is usually the better effect size. Discrete variables with many ordered levels (for example, counts spanning a wide range) are less of a problem, but the same caution applies.
 :::
 
 #### 3. Back-transformation to $r$
@@ -297,8 +344,6 @@ Run your models with and without these studies, and under more than one ceiling.
 
 ### Not all correlations are comparable
 
-**DAMN, this is useful and fuck, didn't think of that...Thanks Ed!!**
-
 Before converting anything, check that the correlations you have extracted are estimating the same quantity. Several common mismatches will quietly corrupt an otherwise careful meta-analysis.
 
 **Partial correlations are not zero-order correlations.** A study reporting the association between temperature and growth rate *after controlling for* body size is reporting a different parameter from a study reporting the raw association. Pooling the two together answers no clear question. If you must include partial correlations, flag them, model them as a moderator, and adjust the sample size to account for the covariates that were controlled for (the variance is closer to $1/(n_i - k_i - 3)$, where $k_i$ is the number of control variables; @Fisher1924-pc; @Aloe2013-pt).
@@ -325,7 +370,10 @@ Before converting anything, check that the correlations you have extracted are e
 
 When voyaging through the literature, you will inevitably encounter studies that present raw data, scatterplots, or matrices, that need to be analyzed as $Z_r$ but are based on ranks rather than raw values. Or you will encounter studies that do not report Pearson's $r$. Instead, because their data were non-normal or ranked, they reported **Spearman's rank correlation** ($\rho$ or $r_s$) or **Kendall's tau** ($\tau$). 
 
-**Maybe we should define these?**
+* **Spearman's $\rho$** is Pearson's $r$ computed on the ranks of each variable rather than on their raw values. It measures how well the relationship is described by *any* monotonic curve, not just a straight line.
+* **Kendall's $\tau$** looks at every pair of observations and asks whether they are ordered the same way on both variables (a concordant pair) or in opposite ways (a discordant pair): $\tau = (C - D) / \binom{n}{2}$, where $C$ and $D$ are the numbers of concordant and discordant pairs. It is less sensitive to outliers and ties than $\rho$, and usually smaller in magnitude for the same data.
+
+In `R`, both are available through `cor(x, y, method = "spearman")` and `cor(x, y, method = "kendall")`.
 
 Because these metrics are based on ranks rather than raw values, their numeric scales are slightly compressed compared to Pearson's $r$. To include these studies in your meta-analysis, you can apply the following transformations to approximate their Pearson equivalents:
 
@@ -451,9 +499,39 @@ To handle this non-independence:
 * Where the same individuals contribute to several correlations, construct an explicit variance-covariance matrix with `metafor::rcalc` rather than relying on random effects alone.
 * Combine either approach with **robust variance estimation** [@Hedges2010-rve; @Pustejovsky2018-cs] (`metafor::robust`, or the `clubSandwich` package) so that your standard errors remain trustworthy even if the assumed covariance structure is imperfect.
 
-**What do you do if some studies require `rcalc` but others do not? As it provides a pan-dataset variance-covariance matrix**
+::: callout-tip
+##### 📝 DRAFT: Mixing studies that need `rcalc` with studies that do not
 
-**Should link to tutorials on these methods**
+The variance-covariance matrix ($\mathbf{V}$) covers the whole dataset, but it is *block-diagonal*: effect sizes from different studies have zero covariance, so each study contributes its own block. A study with a single correlation contributes a $1 \times 1$ block, which is simply its $v_i$. `rcalc` builds these blocks for you: pass it all studies at once, and the ones reporting a single correlation end up with their usual variance on the diagonal and zeros elsewhere. With `rtoz = TRUE`, it works directly on the $Z_r$ scale.
+
+```{r}
+#| eval: true
+#| echo: true
+
+# Study A reports a 3 x 3 correlation matrix for the same 40 birds;
+# studies B, C, and D each report a single correlation
+dat_mix <- data.frame(
+  study = c("A", "A", "A", "B", "C", "D"),
+  var1  = c("mass", "mass", "wing", "temp", "temp", "temp"),
+  var2  = c("wing", "tarsus", "tarsus", "growth", "growth", "growth"),
+  ri    = c(0.50, 0.40, 0.60, 0.30, 0.25, 0.45),
+  ni    = c(40, 40, 40, 25, 60, 33)
+)
+
+V_mix <- rcalc(ri ~ var1 + var2 | study, ni = ni, data = dat_mix, rtoz = TRUE)
+
+V_mix$dat          # Zr values (yi), one row per correlation
+round(V_mix$V, 4)  # block-diagonal V: a 3 x 3 block for A, then 1/(n - 3) for B, C, and D
+```
+
+`rcalc` needs the full correlation matrix from each study, which many papers do not report. When the correlations between effect sizes are unknown, `metafor::vcalc` builds the same block-diagonal structure from an assumed within-study correlation (*e.g.*, `rho = 0.6`). Because that value is a guess, pair it with robust variance estimation and check whether your conclusions change under different values of `rho` [@Pustejovsky2022-che].
+:::
+
+**Tutorials for these methods:**
+
+* Multilevel meta-analysis: the [three-level model chapter](https://bookdown.org/MathiasHarrer/Doing_Meta_Analysis_in_R/multilevel-ma.html) of *Doing Meta-Analysis in R*, the [`metafor` worked example of a three-level model](https://www.metafor-project.org/doku.php/analyses:konstantopoulos2011), and the [online tutorial](https://itchyshin.github.io/Meta-analysis_tutorial/) accompanying @Nakagawa2023-la, written for environmental scientists.
+* Variance-covariance matrices: the `metafor` documentation for [`rcalc`](https://wviechtb.github.io/metafor/reference/rcalc.html) and [`vcalc`](https://wviechtb.github.io/metafor/reference/vcalc.html), and the [`metafor` worked example of a multivariate meta-analysis](https://www.metafor-project.org/doku.php/analyses:berkey1998) with known covariances.
+* Robust variance estimation: the [`metafor::robust`](https://wviechtb.github.io/metafor/reference/robust.html) documentation and the [`clubSandwich` vignette on meta-analysis](https://cran.r-project.org/web/packages/clubSandwich/vignettes/meta-analysis-with-CRVE.html).
 
 ::: callout-tip
 ##### 📝 DRAFT: Dyadic and interaction matrices (social networks and Mantel tests)
@@ -563,8 +641,6 @@ flowchart TD
   I -- no --> J
 ```
 :::
-
-**Fantastic!!!**
 
 To ensure your meta-analysis is rigorous, stick to the following workflow:
 
