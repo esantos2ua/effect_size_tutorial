@@ -75,6 +75,8 @@ Discrete outcomes are everywhere. Animals are either alive or dead, plants are e
 
 When comparing discrete outcomes between discrete treatments, we analyze this data with lnOR or lnRR effect sizes. These effect sizes require either discrete numbers per treatment group and outcome group or proportions and group size per treatment group. If the predictor is continuous we can analyze discrete outcomes with [Zr effect sizes](2.3-Zr-assumptions.qmd).
 
+# Database design 
+
 We recommend structuring lnOR/lnRR extraction databases *wide*, with four columns, one for each of these groups.
 
 For example, imagine you are meta-analyzing the influence of introduced predators on the breeding success of birds. You are extracting data from articles that report the proportion of monitored nests that successfully fledged on islands with and without predators. These values correspond to a contigency table that looks like this:
@@ -439,7 +441,7 @@ These figures look like this:
 
 LC50 is already its own formula. We do not know how to convert this to lnOR or lnRR. If you're faced with lots of this data, you could consider converting survivorship curves, or other data sources, to LC50—and deriving a sampling variance formula or using SAFE to simulate sampling variance.
 
-**It is possible that you can calculate [single-group proportion effect sizes (especially probit transformed proportions)](5-less-common-effect-sizes.qmd#sec-proportions) to describe data like this, but your results may be difficult to compare to other effect sizes in your dataset**
+**It is possible that you can calculate [single-group proportion effect sizes (especially probit transformed proportions)](5.3-single-group-effect-sizes.qmd) to describe data like this, but your results may be difficult to compare to other effect sizes in your dataset**
 
 # Model estimates {#sec-model-estimates}
 

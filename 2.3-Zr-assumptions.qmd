@@ -78,7 +78,11 @@ In this section, we discuss effect sizes for describing the relationship strengt
 
 ### Why can't we just pool raw correlations?
 
+**Should make clear that many studies don't even report $r$, they just plot scatterplots (that they might have analyzed with linear models)**
+
 When primary studies report their results, they often present Pearson's correlation coefficient ($r$). It is an appealing effect size: it carries no units, so a correlation between body mass and clutch size can be compared directly against one between soil nitrogen and plant diversity (if that makes sense to be compared, which is another question). It runs from $-1$ (a perfect negative linear association) through $0$ (no *linear* association) to $+1$ (a perfect positive linear association).
+
+**I think we should also add how $r$ captures both relationship and variance in a single value, which can be confusing if your last stats class was ages ago...**
 
 Convenient as it is, the raw correlation coefficient has three mathematical properties that sit awkwardly with the assumptions of standard meta-analytic models. All three trace back to a single issue: $r$ is bounded by $-1$ and $+1$, and statistical estimates behave badly near hard limits.
 
@@ -86,9 +90,11 @@ Convenient as it is, the raw correlation coefficient has three mathematical prop
 
 2. **Precision is tangled up with the result.** Meta-analysis weights each study by its precision, and this only works if precision is governed by something independent of the answer, such as sample size. For correlations it is not. The sampling variance of $r$ is
 
-    $$v_i = \frac{(1 - r_i^2)^2}{n_i - 1}$${#eq-r-variance}
+$$
+v_i = \frac{(1 - r_i^2)^2}{n_i - 1}
+$${#eq-r-variance}
 
-    which contains the correlation itself. The larger the correlation a study happens to report, the smaller its variance and the heavier its weight. A study that overestimated the correlation by chance is therefore rewarded with extra influence, and the pooled estimate is dragged away from zero. Notice that this pushes in the *opposite* direction to the shrinkage in point 1, above. The same entanglement distorts funnel plots and inflates the false-positive rate of Egger's test for funnel asymmetry. The scatter narrows toward large correlations for reasons that have nothing to do with genuine precision.
+which contains the correlation itself. The larger the correlation a study happens to report, the smaller its variance and the heavier its weight. A study that overestimated the correlation by chance is therefore rewarded with extra influence, and the pooled estimate is dragged away from zero. Notice that this pushes in the *opposite* direction to the shrinkage in point 1, above. The same entanglement distorts funnel plots and inflates the false-positive rate of Egger's test for funnel asymmetry. The scatter narrows toward large correlations for reasons that have nothing to do with genuine precision.
 
 3. **Small samples make matters worse.** Meta-analytic models assume each study's estimate is drawn from a bell-shaped distribution around the true value. For correlations, that approximation holds up well with large samples and modest effects, and it breaks down when the sample is small *and* the correlation is strong—the combination most familiar to anyone working with a dozen populations or a handful of species.
 
@@ -102,7 +108,11 @@ To solve these issues, Fisher proposed a variance-stabilizing, normalizing trans
 
 Fisher's transformation stretches the bounded $[-1, +1]$ interval across the entire number line, pushing the ceilings out to infinity so that estimates are no longer squeezed against them. Formally, it is the inverse hyperbolic tangent ($\text{atanh}$):
 
-$$y_i = Z_{r_i} = \text{atanh}(r_i) = \frac{1}{2} \ln\left(\frac{1 + r_i}{1 - r_i}\right)$${#eq-zr-point}
+$$
+y_i = Z_{r_i} = \text{atanh}(r_i) = \frac{1}{2} \ln\left(\frac{1 + r_i}{1 - r_i}\right)
+$${#eq-zr-point}
+
+**Should the second = sign by a $\approx$?**
 
 Correlations near zero barely move. Correlations near the boundaries are stretched dramatically. The result is a distribution that is close to symmetric and close to normal for samples of roughly $10$ or more.
 
@@ -117,14 +127,24 @@ The effect size has vanished from the variance entirely. Studies are now weighte
 ::: callout-note
 ##### The variance formula assumes bivariate normality
 
-Fisher's variance is derived assuming the two variables follow a bivariate normal distribution. When the underlying data are strongly non-normal (heavy tailed) abundance counts, or ratios with a few extreme values, the true sampling variance can be noticeably larger than $1/(n_i - 3)$, and standard errors will be too optimistic [@Hawkins1989-zr; @Kowalski1972-nn]. This is a further reason to prefer robust variance estimation (see below) when your evidence base is built on skewed ecological data.
+Fisher's variance is derived assuming the two variables follow a bivariate normal distribution. This means both variables are normal but covary. See [here](https://www.statisticshowto.com/bivariate-distribution/) to explore this distribution.
+
+When the underlying data are strongly non-normal (heavy tailed) abundance counts, or ratios with a few extreme values, the true sampling variance can be noticeably larger than $1/(n_i - 3)$, and standard errors will be too optimistic [@Hawkins1989-zr; @Kowalski1972-nn]. This is a further reason to prefer robust variance estimation (see below) when your evidence base is built on skewed ecological data.
+
+**I guess this means that you can't do funky things, like calculate Zr for continuous responses and a discrete predictor?**
 :::
 
 #### 3. Back-transformation to $r$
 
-We conduct all statistical modeling, random-effects estimation, and moderator tests in the $Z_r$ metric, but $Z_r$ values are difficult to interpret conceptually. An effect size of $Z_r = 1.1$ means very little to our brain until we convert it back to $r = 0.8$. We therefore back-transform final pooled estimates and interval boundaries to the intuitive correlation scale using the hyperbolic tangent ($\tanh$):
+We conduct all statistical modeling, random-effects estimation, and moderator tests in the $Z_r$ metric, but $Z_r$ values are difficult to interpret conceptually. An effect size of $Z_r = 1.1$ means very little to our brain until we convert it back to $r = 0.8$. We therefore back-transform final pooled estimates from our meta-analytic models, and the confidence intervals, to the intuitive correlation scale using the hyperbolic tangent ($\tanh$):
 
 $$r = \tanh(Z_r) = \frac{e^{2 Z_r} - 1}{e^{2 Z_r} + 1}$${#eq-zr-back}
+
+In `R`, this looks like:
+
+```{r}
+tanh(1.1)
+```
 
 ::: callout-warning
 ##### Back-transformation is not a neutral operation
@@ -134,26 +154,25 @@ Because the conversion from $Z_r$ to $r$ is curved rather than straight, back-tr
 Three practical consequences:
 
 * **Interval bounds back-transform safely.** Because the transformation preserves rank order, converting the two ends of a confidence or prediction interval gives valid bounds on the $r$ scale. So, convert the endpoints, never the standard error.
+
 * **Heterogeneity does not back-transform at all.** Report $\tau^2$, $I^2$, and prediction intervals on the $Z_r$ scale, or convert the prediction interval endpoints only. There is no meaningful "$\tau^2$ in correlation units."
+
 * **Word your conclusion carefully.** "The pooled effect corresponds to a correlation of 0.42" is defensible; "the average correlation across studies was 0.42" is not, once heterogeneity is appreciable.
 
-Some authors (notably the Hunter–Schmidt tradition; @Hunter2014-hs; @Field2001-cf) respond to this by pooling raw correlations with sample-size weights instead. We use Fisher's $Z_r$ throughout this guide because it solves three problems at once, but the choice is genuinely contested and worth acknowledging in your methods section.
+Some authors (notably the Hunter–Schmidt tradition; @Hunter2014-hs; @Field2001-cf) respond to this by pooling raw correlations with sample-size weights instead. We use Fisher's $Z_r$ throughout this guide because it solves three problems at once, but the choice is genuinely contested and worth considering.
 :::
 
 ---
 
 ### Code and formula pairing: implementation in R
 
-Let's look at how to implement these calculations in R using `metafor::escalc` and basic math.
+Let's look at how to implement these calculations in R using `metafor::escalc` and basic math. 
 
-::: callout-note
-##### Fisher's $Z$ in `metafor`
+Note that in many cases, the $Z_r$ effect sizes that you calculate in a meta-analysis will involve multiple steps. Few studies report $r$ directly. Instead many of those studies will present scatterplot visualizations, which they analyze with linear models. To calculate $r$ (the precursor to $Z_r$), you'll have to extract the points from the scatterplot (or find their raw data) and calculate $r$ across the points. 
 
-The `metafor` package [@Viechtbauer2010-uq] implements Fisher's $Z$ transformation via the measure code `"ZCOR"`. This is the measure you want for the workflow in this chapter.
+As such, your raw dataset will be long, with a row per measurement point and an ID to specify the summarization group to calculate $r$. The sample size ($n$) will be the number of rows.
 
-You may also encounter `"UCOR"`, which applies the Olkin-Pratt correction [@Olkin1958-op] for the small-sample shrinkage described above. Be aware that `"UCOR"` returns a corrected *raw* correlation, not a transformed one. So it fixes the shrinkage while leaving the variance-effect entanglement fully intact. It is not an upgraded version of `"ZCOR"`, and the two should not be mixed within a single analysis.
-:::
-
+Once $r$ and $n$ are calculated the operation is simple. We'll here show both calculating manually and with `escalc`.
 ```{r}
 #| eval: true
 #| echo: true
@@ -180,6 +199,14 @@ print(paste("escalc Z (vi):", round(dat_zr$vi[1], 4)))
 r_back <- tanh(z_manual)
 print(paste("Back-transformed r:", round(r_back, 4)))
 ```
+
+::: callout-note
+##### Fisher's $Z$ in `metafor`
+
+The `metafor` package [@Viechtbauer2010-uq] implements Fisher's $Z$ transformation via the `measure` code `"ZCOR"`. This is the measure you want for the workflow in this chapter.
+
+You may also encounter `"UCOR"`, which applies the Olkin-Pratt correction [@Olkin1958-op] for the small-sample shrinkage described above. Be aware that `"UCOR"` returns a corrected *raw* correlation, not a transformed one. So it fixes the shrinkage while leaving the variance-effect entanglement fully intact. It is not an upgraded version of `"ZCOR"`, and the two should not be mixed within a single analysis. In general, we know of few cases where `"UCOR"` should be used instead of `"ZCOR"`.
+:::
 
 Let's plot how $r$ maps to $Z_r$. Notice how the relationship is nearly a straight line around zero but curves sharply as it approaches the boundaries of $-1$ and $+1$:
 
@@ -270,6 +297,8 @@ Run your models with and without these studies, and under more than one ceiling.
 
 ### Not all correlations are comparable
 
+**DAMN, this is useful and fuck, didn't think of that...Thanks Ed!!**
+
 Before converting anything, check that the correlations you have extracted are estimating the same quantity. Several common mismatches will quietly corrupt an otherwise careful meta-analysis.
 
 **Partial correlations are not zero-order correlations.** A study reporting the association between temperature and growth rate *after controlling for* body size is reporting a different parameter from a study reporting the raw association. Pooling the two together answers no clear question. If you must include partial correlations, flag them, model them as a moderator, and adjust the sample size to account for the covariates that were controlled for (the variance is closer to $1/(n_i - k_i - 3)$, where $k_i$ is the number of control variables; @Fisher1924-pc; @Aloe2013-pt).
@@ -294,7 +323,9 @@ Before converting anything, check that the correlations you have extracted are e
 
 ### Handling ranked correlations: Spearman's $\rho$ and Kendall's $\tau$
 
-When voyaging through the literature, you will inevitably encounter studies that do not report Pearson's $r$. Instead, because their data were non-normal or ranked, they reported **Spearman's rank correlation** ($\rho$ or $r_s$) or **Kendall's tau** ($\tau$).
+When voyaging through the literature, you will inevitably encounter studies that present raw data, scatterplots, or matrices, that need to be analyzed as $Z_r$ but are based on ranks rather than raw values. Or you will encounter studies that do not report Pearson's $r$. Instead, because their data were non-normal or ranked, they reported **Spearman's rank correlation** ($\rho$ or $r_s$) or **Kendall's tau** ($\tau$). 
+
+**Maybe we should define these?**
 
 Because these metrics are based on ranks rather than raw values, their numeric scales are slightly compressed compared to Pearson's $r$. To include these studies in your meta-analysis, you can apply the following transformations to approximate their Pearson equivalents:
 
@@ -311,6 +342,8 @@ Both formulas assume the underlying data are bivariate normal [@Rupinski1996-rd;
 A useful refinement: once converted and Fisher-transformed, an effect size originating from Spearman's $\rho$ is slightly noisier than one originating from Pearson's $r$. Because ranks discard some metric information, converted rank correlations have slightly lower statistical efficiency than Pearson correlations, inflating the sampling variance of $Z_r$ by about 6% under bivariate normality [@Fieller1957-rk; @Myers2004-rk]: 
 
 $$v_i \approx \frac{1.06}{n_i - 3}$${#eq-rank-inflation}
+
+As such, these converted effect sizes will have less influence on your meta-analytic models, which, at least is a conservative type of error.
 
 ::: callout-tip
 ##### 📝 DRAFT: Converting rank correlations in R
@@ -400,9 +433,11 @@ Before running your models:
 
 Correlation coefficients frequently violate the assumption of independence. Several traps exist in continuous predictor meta-analyses:
 
-#### 1. Pairwise multi-trait matrices (the melting trap)
+#### 1. Pairwise correlation matrices (the melting trap)
 
 Primary studies often present a correlation matrix comparing multiple traits or environmental factors. Meta-analysts sometimes "melt" these matrices and include all pairwise correlations as separate effect sizes.
+
+For example, imagine that a study reports a pairwise matrix of grooming interactions between individuals, which is thought to be a predictor of defense interactions between individuals. Melting these matrices allows you to calculate $r$. However, the observations in that matrix are non-independent as each individual is repeated multiple times (for each interaction with other individuals).
 
 ::: callout-warning
 ##### Melted matrices cause non-independence that grows quadratically
@@ -410,11 +445,15 @@ Primary studies often present a correlation matrix comparing multiple traits or 
 If a study measures 5 traits on a single set of individuals, it generates $\frac{5 \times (5-1)}{2} = 10$ pairwise correlations. Those 10 correlations share the exact same subjects. Treating them as independent data points inflates your Type I error rate, because the model behaves as though you had ten times more information than you actually collected.
 :::
 
-To handle this multi-trait non-independence:
+To handle this non-independence:
 
 * Use **multilevel meta-analysis** with a random effect for study or paper identity to absorb shared variance [@Noble2017-wv].
 * Where the same individuals contribute to several correlations, construct an explicit variance-covariance matrix with `metafor::rcalc` rather than relying on random effects alone.
 * Combine either approach with **robust variance estimation** [@Hedges2010-rve; @Pustejovsky2018-cs] (`metafor::robust`, or the `clubSandwich` package) so that your standard errors remain trustworthy even if the assumed covariance structure is imperfect.
+
+**What do you do if some studies require `rcalc` but others do not? As it provides a pan-dataset variance-covariance matrix**
+
+**Should link to tutorials on these methods**
 
 ::: callout-tip
 ##### 📝 DRAFT: Dyadic and interaction matrices (social networks and Mantel tests)
@@ -524,6 +563,8 @@ flowchart TD
   I -- no --> J
 ```
 :::
+
+**Fantastic!!!**
 
 To ensure your meta-analysis is rigorous, stick to the following workflow:
 

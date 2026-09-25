@@ -43,9 +43,13 @@ website:
           text: Continuous predictors
       - href: 4-converting-effect-sizes.qmd
         text: Converting between effect sizes
+      - section: Less common effect sizes
+        contents:
+        - href: 5.1-variability-between-groups.qmd
+        - href: 5.2-differences-in-magnitude.qmd
+        - href: 5.3-single-group-effect-sizes.qmd
       - section: "Appendix"
         contents:
-        - 5-less-common-effect-sizes.qmd
         - 6-escalc-cheatsheet.qmd
         - 7-simulating-non-gaussian-responses.qmd
       # - href: https://cossee.org/
